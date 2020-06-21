@@ -46,7 +46,7 @@ Slack Slash Commands:
 Setting it up
 ===
 
-Start by setting up the basic infrastructure from https://github.com/jtwaleson/minimalistic-serverless-slack-app via the README there. This should take about 10 minutes.
+Start by setting up the basic infrastructure from https://github.com/jtwaleson/minimalistic-serverless-slack-app via the README there. This should take about 10 minutes. Throughout the process, use a better name for your Slack App, like `Quotes Bot`
 
 Then we'll follow these steps:
 
@@ -60,11 +60,47 @@ Here we go!
 Step 1 - Create the DynamoDB table and Index
 ---
 
+Go to DynamoDB in the AWS Console and create a new DynamoDB table. Use the following settings but do not click Create yet! (Note: quotes already existed in my account, but it will probably not exist in your account yet).
+
+![](images/image-1.png)
+
+Before clicking Create, add a Secondary Index like so:
+
+![](images/image-2.png)
+
+Note the name of the index, you will need this in the code later. The code defaults to `team-timestamp-index`. Back on the overview, it should now look like this:
+
+![](images/image-3.png)
+
+
 Step 2 - Give your Lambda IAM Role access to the DynamoDB table
 ---
+
+Go to the Lambda console, click Permissions and open the Role definition.
+
+![](images/image-5.png)
+
+This brings you to the IAM console. Attach an `inline policy` to the role.
+
+![](images/image-6.png)
+
+When you edit the policy, make sure the json output looks like this:
+
+![](images/image-7.png)
+
+That's it! It might take a couple of minutes before the permissions take effect.
+
+
 Step 3 - Change the code to include the new slash commands
 ---
 
+Go back to the Lambda console, and in the lambda function code editor, copy the code from `lambda_handler.py` from this repository rather than the code from Minimalistic Serverless Slack App. Save.
+
 Step 4 - Add the Slash commands in Slack
 ---
+Go to the Slack App management interface and add the following slash commands. All commands should have the Request URL pointing to the same API Gateway Endpoint.
 
+![](images/image-4.png)
+
+
+That's it! Quote away.

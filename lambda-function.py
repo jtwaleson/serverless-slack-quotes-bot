@@ -204,7 +204,10 @@ def lambda_handler(event, context):
         )
         return {
             "statusCode": 200,
-            "body": response_text,
+            "body": {
+                "response_type": "in_channel",
+                "tet": response_text,
+            }
         }
     except Exception:
         traceback.print_exc()

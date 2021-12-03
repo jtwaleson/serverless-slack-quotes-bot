@@ -1,3 +1,4 @@
+import json
 import base64
 import hmac
 import os
@@ -204,10 +205,13 @@ def lambda_handler(event, context):
         )
         return {
             "statusCode": 200,
-            "body": {
+            "body": json.dumps({
                 "response_type": "in_channel",
-                "tet": response_text,
-            }
+                "text": response_text,
+            }),
+            "headers": {
+                "Content-Type": "application/json"
+            },
         }
     except Exception:
         traceback.print_exc()

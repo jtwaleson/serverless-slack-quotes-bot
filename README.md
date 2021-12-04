@@ -94,7 +94,9 @@ That's it! It might take a couple of minutes before the permissions take effect.
 Step 3 - Change the code to include the new slash commands
 ---
 
-Go back to the Lambda console, and in the lambda function code editor, copy the code from `lambda_handler.py` from this repository rather than the code from Minimalistic Serverless Slack App. Save.
+Go back to the Lambda console, and in the lambda function code editor, copy the files from the `src` directory in this repository rather than the code from Minimalistic Serverless Slack App. Save.
+
+Also check out the `deploy.sh` executable to streamline code updates.
 
 Step 4 - Add the Slash commands in Slack
 ---

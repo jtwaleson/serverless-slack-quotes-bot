@@ -25,7 +25,7 @@ def _get_all_quotes(slack_team):
 
 
 @slack_command("/add-quote")
-def _bot_add_quote(message, slack_team, channel_id):
+def _bot_add_quote(message, slack_team, channel_id, trigger_id):
     if message is None:
         return "A quote must have a text... Try again with '/add-quote I am an idiot'"
     parts = message.split(" ")
@@ -44,7 +44,7 @@ def _bot_add_quote(message, slack_team, channel_id):
 
 
 @slack_command("/last-quotes")
-def _bot_last_quotes(message, slack_team, channel_id):
+def _bot_last_quotes(message, slack_team, channel_id, trigger_id):
     all_quotes = _get_all_quotes(slack_team)
     if len(all_quotes) == 0:
         return "No quotes were found"
@@ -64,7 +64,7 @@ def _bot_last_quotes(message, slack_team, channel_id):
 
 
 @slack_command("/random-quote")
-def _bot_random_quote(message, slack_team, channel_id):
+def _bot_random_quote(message, slack_team, channel_id, trigger_id):
     all_quotes = _get_all_quotes(slack_team)
     if len(all_quotes) == 0:
         return "No quotes were found"
@@ -73,7 +73,7 @@ def _bot_random_quote(message, slack_team, channel_id):
 
 
 @slack_command("/search-quotes")
-def _bot_search_quotes(message, slack_team, channel_id):
+def _bot_search_quotes(message, slack_team, channel_id, trigger_id):
     if message is None or len(message) == 0:
         return "We need some text to search for! Try '/search-quote hi'"
     all_quotes = _get_all_quotes(slack_team)

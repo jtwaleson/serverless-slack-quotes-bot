@@ -17,11 +17,13 @@ def lambda_handler(event, context):
         print("parsing body data and handling command")
         data = dict(parse_qsl(base64.b64decode(event["body"]).decode("utf-8")))
         if "command" in data:
+            print(json.dumps(data, indent=4).replace(' ', '_'))
             response_text = util.handle_command(
                 data["command"],
                 data.get("text"),
                 data["team_id"],
                 data["channel_id"],
+                data["trigger_id"],
             )
             return {
                 "statusCode": 200,
@@ -35,6 +37,7 @@ def lambda_handler(event, context):
             }
         elif "payload" in data:
             data = json.loads(data["payload"])
+            print(json.dumps(data, indent=4).replace(' ', '_'))
             util.handle_action(data)
             return {
                 "statusCode": 200,

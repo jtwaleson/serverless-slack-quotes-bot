@@ -1,6 +1,6 @@
 import uuid
 import json
-from util import slack_command, send_message, slack_action, update_message
+from util import slack_command, send_message, slack_action, update_message, open_view
 
 to_num = {
     1: "one",
@@ -16,7 +16,29 @@ to_num = {
 
 
 @slack_command("/easee-poll")
-def _create_new_poll(message, slack_team, channel_id):
+def _create_new_poll(message, slack_team, channel_id, trigger_id):
+    open_view(
+        trigger_id,
+        blocks=[
+            {
+                "type": "section",
+                "block_id": "section-identifier",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*Welcome* to ~my~ Block Kit _modal_!",
+                },
+                "accessory": {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Just a button"},
+                    "action_id": "button-identifier",
+                },
+            }
+        ],
+    )
+    return "a"
+
+
+def old_crap(channel_id, trigger_id, message):
     sections = list(
         filter(lambda x: len(x) > 0, map(lambda y: y.strip(", "), message.split('"')))
     )
@@ -50,7 +72,7 @@ def _create_new_poll(message, slack_team, channel_id):
         )
         blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": " "}})
 
-    send_message(channel_id, blocks=blocks)
+    send_message(channel_id, trigger_id, blocks=blocks)
     return "Poll created"
 
 

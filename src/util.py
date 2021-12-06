@@ -36,7 +36,7 @@ SLACK_ACTION_TO_HANDLER = {}
 db_table = boto3.resource("dynamodb").Table(DATABASE_TABLE)
 
 
-def handle_command(command, message, slack_team, channel_id):
+def handle_command(command, message, slack_team, channel_id, trigger_id):
     print("handling command", command)
     if command in SLACK_COMMAND_TO_HANDLER:
         handler = SLACK_COMMAND_TO_HANDLER[command]
@@ -44,6 +44,7 @@ def handle_command(command, message, slack_team, channel_id):
             "message": message,
             "slack_team": slack_team,
             "channel_id": channel_id,
+            "trigger_id": trigger_id,
         }
         response = handler(**kwargs)
         if response is None:
@@ -160,3 +161,28 @@ def update_message(blocks, channel_id, ts_id):
         },
     )
     print("updating message", json.dumps(r.json(), indent=4))
+
+
+def open_view(trigger_id, blocks):
+    print("opening view", trigger_id)
+    r = requests.post(
+        "https://slack.com/api/views.open",
+        headers={
+            "Content-type": "application/json",
+            "Authorization": f"Bearer {BEARER_TOKEN}",
+        },
+        json={
+            "trigger_id": trigger_id,
+            "view": {
+                "type": "modal",
+                "callback_id": "hmmmwhat",
+                "title": {"type": "plain_text", "text": "Create a new poll"},
+                "blocks": blocks,
+                "submit": {
+                    "type": "plain_text",
+                    "text": "Create Poll"
+                },
+            },
+        },
+    )
+    print("sending message", r.json())

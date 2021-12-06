@@ -1,0 +1,6 @@
+* [x] router for all kinds of slack responses
+* [x] create counter in polls
+* [x] dialog for creating polls
+* [ ] dialog for editing polls
+* [ ] scheduling polls
+* [ ] showing scheduled polls in app admin screen

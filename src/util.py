@@ -1,5 +1,4 @@
 import base64
-import json
 import boto3
 import hashlib
 import hmac
@@ -29,76 +28,57 @@ except KeyError:
 DATABASE_INDEX_NAME = "team-timestamp-index"
 DATABASE_TABLE = "quotes"
 
-SLACK_COMMAND_TO_HANDLER = {}
-SLACK_ACTION_TO_HANDLER = {}
+SLACK_CALLBACK_HANDLERS = {
+    "command": {},
+    "block_actions": {},
+    "view_submission": {},
+    #    "view_closed": {},
+    #    "shortcut": {},
+    #    "message_actions": {},
+}
 
 
 db_table = boto3.resource("dynamodb").Table(DATABASE_TABLE)
 
 
-def handle_command(command, message, slack_team, channel_id, trigger_id):
-    print("handling command", command)
-    if command in SLACK_COMMAND_TO_HANDLER:
-        handler = SLACK_COMMAND_TO_HANDLER[command]
-        kwargs = {
-            "message": message,
-            "slack_team": slack_team,
-            "channel_id": channel_id,
-            "trigger_id": trigger_id,
-        }
-        response = handler(**kwargs)
-        if response is None:
-            raise Exception(f"Handler {str(handler)} should return a string")
-        else:
-            return response
-    else:
-        return f"No handler registered for command {command}"
+def _slack_callback_handler(callback_type, command):
+    global SLACK_CALLBACK_HANDLERS
+    if command in SLACK_CALLBACK_HANDLERS[callback_type]:
+        raise Exception(f"{callback_type} {command} is already registered")
+
+    def wrapper(handler):
+        SLACK_CALLBACK_HANDLERS[callback_type][command] = handler
+        return handler
+
+    return wrapper
 
 
-def handle_action(data):
-    if "actions" not in data:
-        raise Exception("data does not contain actions, help!")
-    if len(data["actions"]) > 1:
-        raise Exception("I can not yet handle more than one action per response")
-
-    action = data["actions"][0]["action_id"]
-
-    print("handling action", action)
-
-    if action in SLACK_ACTION_TO_HANDLER:
-        handler = SLACK_ACTION_TO_HANDLER[action]
-        handler(data)
-    else:
-        raise Exception(f"No handler registered for action {action}")
-
-
-# this is a decorator for routing commands
 def slack_command(command):
-    global SLACK_COMMAND_TO_HANDLER
-    if command in SLACK_COMMAND_TO_HANDLER:
-        raise Exception(f"command {command} is already registered")
-
-    def wrapper(command_handler):
-        SLACK_COMMAND_TO_HANDLER[command] = command_handler
-        return command_handler
-
-    return wrapper
+    return _slack_callback_handler("command", command)
 
 
-# this is a decorator for routing actions
-def slack_action(action):
-    global SLACK_ACTION_TO_HANDLER
-    if action in SLACK_ACTION_TO_HANDLER:
-        raise Exception(f"action {action} is already registered")
-
-    def wrapper(action_handler):
-        SLACK_ACTION_TO_HANDLER[action] = action_handler
-        return action_handler
-
-    return wrapper
+def slack_block_action(action):
+    return _slack_callback_handler("block_actions", action)
 
 
-def _validate_signature(event):
+def slack_view_submission(action):
+    return _slack_callback_handler("view_submission", action)
+
+
+def extract_key_from_payload(callback_type, data):
+    if callback_type == "block_actions":
+        if "actions" not in data:
+            raise Exception("data does not contain actions, help!")
+        if len(data["actions"]) > 1:
+            raise Exception("I can not yet handle more than one action per response")
+
+        return data["actions"][0]["action_id"]
+    elif callback_type == "view_submission":
+        return data["view"]["callback_id"]
+    raise Exception("Key could not be extracted")
+
+
+def validate_signature(event):
     print("validating signature")
 
     # 1 - get data from request
@@ -130,7 +110,7 @@ def _validate_signature(event):
         raise Exception("Signature does not match, will not execute request")
 
 
-def send_message(channel_id, blocks):
+def send_message(channel_id, blocks, text):
     print("sending message to", channel_id)
     r = requests.post(
         "https://slack.com/api/chat.postMessage",
@@ -141,9 +121,11 @@ def send_message(channel_id, blocks):
         json={
             "blocks": blocks,
             "channel": channel_id,
+            "text": text,
         },
     )
-    print("sending message", r.json())
+    print(r.text)
+    r.raise_for_status()
 
 
 def update_message(blocks, channel_id, ts_id):
@@ -160,11 +142,11 @@ def update_message(blocks, channel_id, ts_id):
             "ts": ts_id,
         },
     )
-    print("updating message", json.dumps(r.json(), indent=4))
+    r.raise_for_status()
 
 
-def open_view(trigger_id, blocks):
-    print("opening view", trigger_id)
+def open_view(trigger_id, blocks, text, submit_text, callback_id):
+    print("opening view", trigger_id, callback_id)
     r = requests.post(
         "https://slack.com/api/views.open",
         headers={
@@ -175,14 +157,15 @@ def open_view(trigger_id, blocks):
             "trigger_id": trigger_id,
             "view": {
                 "type": "modal",
-                "callback_id": "hmmmwhat",
-                "title": {"type": "plain_text", "text": "Create a new poll"},
+                "callback_id": callback_id,
+                "title": {"type": "plain_text", "text": text},
                 "blocks": blocks,
                 "submit": {
                     "type": "plain_text",
-                    "text": "Create Poll"
+                    "text": submit_text,
                 },
             },
         },
     )
-    print("sending message", r.json())
+    print(r.text)
+    r.raise_for_status()

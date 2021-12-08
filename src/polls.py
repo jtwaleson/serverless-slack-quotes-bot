@@ -229,8 +229,13 @@ def _handle_post_poll(data):
 
     blocks.append(
         {
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": f"Poll created by <@{created_by}>"},
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"Poll created by <@{created_by}>",
+                }
+            ],
         }
     )
     send_message(channel_id, blocks=blocks, text=title)

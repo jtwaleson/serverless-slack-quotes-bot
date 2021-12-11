@@ -172,7 +172,7 @@ def _handle_vote(data):
             if not anonymous:
                 block["text"]["text"] = " ".join(vote) + " "
             else:
-                block["text"]["text"] = " "
+                block["text"]["text"] = ":thumbsup:" * len(vote) + " "
         else:
             block["text"]["text"] = re.sub(
                 " `\\d+`$", "", block["text"]["text"]

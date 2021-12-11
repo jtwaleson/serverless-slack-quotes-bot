@@ -125,6 +125,8 @@ def send_message(channel_id, blocks, text):
         },
     )
     r.raise_for_status()
+    if not r.json()["ok"]:
+        raise Exception(r.json()["response_metadata"]["messages"])
     return r.json()["ts"]
 
 
@@ -142,6 +144,8 @@ def update_message(blocks, channel_id, ts_id):
             "ts": ts_id,
         },
     )
+    if not r.json()["ok"]:
+        raise Exception(r.json()["response_metadata"]["messages"])
     r.raise_for_status()
 
 
@@ -167,4 +171,6 @@ def open_view(trigger_id, blocks, text, submit_text, callback_id):
             },
         },
     )
+    if not r.json()["ok"]:
+        raise Exception(r.json()["response_metadata"]["messages"])
     r.raise_for_status()

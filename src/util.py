@@ -124,8 +124,8 @@ def send_message(channel_id, blocks, text):
             "text": text,
         },
     )
-    print(r.text)
     r.raise_for_status()
+    return r.json()["ts"]
 
 
 def update_message(blocks, channel_id, ts_id):
@@ -167,5 +167,4 @@ def open_view(trigger_id, blocks, text, submit_text, callback_id):
             },
         },
     )
-    print(r.text)
     r.raise_for_status()

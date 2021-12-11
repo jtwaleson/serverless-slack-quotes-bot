@@ -7,6 +7,7 @@ from util import (
     slack_view_submission,
     update_message,
     open_view,
+    db_table,
 )
 
 to_num = {
@@ -71,20 +72,20 @@ def _create_new_poll(data):
             },
             "label": {"type": "plain_text", "text": "Select a channel", "emoji": True},
         },
-        # {
-        #     "type": "input",
-        #     "block_id": "advanced-options",
-        #     "element": {
-        #         "type": "checkboxes",
-        #         "options": [
-        #             {
-        #                 "text": {
-        #                     "type": "plain_text",
-        #                     "text": "Anonymous voting",
-        #                     "emoji": True,
-        #                 },
-        #                 "value": "anonymous-votes",
-        #             },
+        {
+            "type": "input",
+            "block_id": "advanced-options",
+            "element": {
+                "type": "checkboxes",
+                "options": [
+                    {
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Anonymous voting",
+                            "emoji": True,
+                        },
+                        "value": "anonymous-votes",
+                    },
         #             {
         #                 "text": {
         #                     "type": "plain_text",
@@ -101,12 +102,12 @@ def _create_new_poll(data):
         #                 },
         #                 "value": "limit-votes",
         #             },
-        #         ],
-        #         "action_id": "create-poll-options-changed",
-        #     },
-        #     "label": {"type": "plain_text", "text": "Advanced options", "emoji": True},
-        #     "optional": True,
-        # },
+                ],
+                "action_id": "create-poll-options-changed",
+            },
+            "label": {"type": "plain_text", "text": "Advanced options", "emoji": True},
+            "optional": True,
+        },
     ]
     for i in range(9):
         blocks.append(
@@ -142,21 +143,40 @@ def _create_new_poll(data):
 def _handle_vote(data):
     blocks = data["message"]["blocks"]
     added_or_removed_user = f'<@{data["user"]["id"]}>'
+
+    item = db_table.get_item(Key={
+        "timestamp": int(data["message"]["ts"].replace(".", "")),
+    })["Item"]
+
+    if item["team"] != f'{data["message"]["team"]}:poll':
+        raise Exception("wrong team")
+
+    anonymous = item["anonymous"]
+
+    votes = item["votes"]
+
     for action in data["actions"]:
-        for idx, block in enumerate(blocks):
-            try:
-                if block["accessory"]["value"] == action["value"]:
-                    current_users = blocks[idx + 1]["text"]["text"].split()
-                    try:
-                        current_users.remove(added_or_removed_user)
-                    except ValueError:
-                        current_users.append(added_or_removed_user)
-                    blocks[idx + 1]["text"]["text"] = " ".join(current_users) + " "
-                    block["text"]["text"] = re.sub(
-                        " `\\d+`$", "", block["text"]["text"]
-                    ) + (f" `{len(current_users)}`" if len(current_users) > 0 else "")
-            except KeyError:
-                pass
+        vote = votes[action["block_id"]]
+        if added_or_removed_user in vote:
+            vote.remove(added_or_removed_user)
+        else:
+            vote.append(added_or_removed_user)
+
+    db_table.put_item(Item=item)
+
+    for block in blocks:
+        if not block["block_id"].startswith("option-"):
+            continue
+        vote = votes[block["block_id"].replace("-people", "")]
+        if block["block_id"].endswith("-people"):
+            if not anonymous:
+                block["text"]["text"] = " ".join(vote) + " "
+            else:
+                block["text"]["text"] = " "
+        else:
+            block["text"]["text"] = re.sub(
+                " `\\d+`$", "", block["text"]["text"]
+            ) + (f" `{len(vote)}`" if len(vote) > 0 else "")
     update_message(blocks, data["channel"]["id"], data["message"]["ts"])
 
 
@@ -198,8 +218,10 @@ def _handle_post_poll(data):
             },
         }
     ]
+    votes = {}
     for idx, option in enumerate(texts):
         idx += 1
+        votes[f"option-{idx}"] = []
         blocks.append(
             {
                 "type": "section",
@@ -238,5 +260,15 @@ def _handle_post_poll(data):
             ],
         }
     )
-    send_message(channel_id, blocks=blocks, text=title)
+    message_id = send_message(channel_id, blocks=blocks, text=title)
+    db_table.put_item(
+        Item={
+            "team": f'{data["view"]["team_id"]}:poll',
+            "timestamp": int(message_id.replace(".", "")),
+            "created_by": created_by,
+            "anonymous": anonymous,
+            "votes": votes,
+        }
+    )
+
     return {}

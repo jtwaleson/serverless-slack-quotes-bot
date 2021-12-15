@@ -110,24 +110,55 @@ def validate_signature(event):
         raise Exception("Signature does not match, will not execute request")
 
 
-def send_message(channel_id, blocks, text):
-    print("sending message to", channel_id)
+def send_message(channel_id, blocks, text, post_at=None):
+    payload = {
+        "blocks": blocks,
+        "channel": channel_id,
+        "text": text,
+    }
+    if post_at is None:
+        print("sending message to", channel_id)
+        url = "https://slack.com/api/chat.postMessage"
+    else:
+        print("scheduling message to", channel_id, "at", post_at)
+        payload["post_at"] = post_at
+        url = "https://slack.com/api/chat.scheduleMessage"
+
     r = requests.post(
-        "https://slack.com/api/chat.postMessage",
+        url,
+        headers={
+            "Content-type": "application/json",
+            "Authorization": f"Bearer {BEARER_TOKEN}",
+        },
+        json=payload,
+    )
+    r.raise_for_status()
+    if not r.json()["ok"]:
+        if "error" in r.json():
+            raise Exception(r.json()["error"])
+        raise Exception(r.json()["response_metadata"]["messages"])
+    if post_at is None:
+        return r.json()["ts"]
+    else:
+        return r.json()["scheduled_message_id"]
+
+
+def delete_scheduled_message(channel_id, msg_id):
+    print("deleting scheduled message", channel_id, msg_id)
+    r = requests.post(
+        "https://slack.com/api/chat.deleteScheduledMessage",
         headers={
             "Content-type": "application/json",
             "Authorization": f"Bearer {BEARER_TOKEN}",
         },
         json={
-            "blocks": blocks,
             "channel": channel_id,
-            "text": text,
+            "scheduled_message_id": msg_id,
         },
     )
-    r.raise_for_status()
     if not r.json()["ok"]:
         raise Exception(r.json()["response_metadata"]["messages"])
-    return r.json()["ts"]
+    r.raise_for_status()
 
 
 def update_message(blocks, channel_id, ts_id):
@@ -174,3 +205,50 @@ def open_view(trigger_id, blocks, text, submit_text, callback_id):
     if not r.json()["ok"]:
         raise Exception(r.json()["response_metadata"]["messages"])
     r.raise_for_status()
+
+
+def update_view(view, view_id):
+    print("updating view", view_id)
+    r = requests.post(
+        "https://slack.com/api/views.update",
+        headers={
+            "Content-type": "application/json",
+            "Authorization": f"Bearer {BEARER_TOKEN}",
+        },
+        json={
+            "view": view,
+            "view_id": view_id,
+        },
+    )
+    if not r.json()["ok"]:
+        raise Exception(r.json()["response_metadata"]["messages"])
+    r.raise_for_status()
+
+
+def get_all_scheduled_posts(channel):
+    past_cursors = set()
+    payload = {
+        "channel": channel,
+    }
+    while True:
+        print("getting", payload)
+        r = requests.get(
+            "https://slack.com/api/chat.scheduledMessages.list",
+            headers={
+                "Content-type": "application/json",
+                "Authorization": f"Bearer {BEARER_TOKEN}",
+            },
+            json=payload,
+        )
+        r.raise_for_status()
+        data = r.json()
+        yield from data["scheduled_messages"]
+        del data["scheduled_messages"]
+        print(data)
+        if "next_cursor" in data["response_metadata"]:
+            payload["cursor"] = data["response_metadata"]["next_cursor"]
+            if len(payload["cursor"]) == 0 or payload["cursor"] in past_cursors:
+                return
+            past_cursors.add(payload["cursor"])
+        else:
+            return

@@ -3,7 +3,6 @@ import base64
 import traceback
 from urllib.parse import parse_qsl
 
-
 from util import SLACK_CALLBACK_HANDLERS, validate_signature, extract_key_from_payload
 
 import quotes  # NOQA
@@ -13,6 +12,10 @@ import polls  # NOQA
 def lambda_handler(event, context):
     data = None
     sub_data = None
+    if event.get("source", None) == "aws.events":
+        polls.schedule_all_recurring_polls()
+        return
+
     try:
         validate_signature(event)
 
@@ -30,7 +33,7 @@ def lambda_handler(event, context):
                 "statusCode": 200,
                 "body": json.dumps(
                     {
-                        "response_type": "in_channel",
+                        "response_type": "in_channel",  # make this ephemeral for the original message to disappear
                         "text": response_text,
                     }
                 ),

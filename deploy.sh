@@ -5,7 +5,7 @@ set -euo pipefail
 #rm src.zip
 
 cd src
-zip ../src.zip *
+zip -r ../src.zip *
 cd ..
 aws lambda update-function-code --function-name slack-quotes-bot --zip-file fileb://src.zip --publish | cat
 rm src.zip

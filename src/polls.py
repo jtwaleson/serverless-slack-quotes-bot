@@ -6,6 +6,14 @@ import pytz
 import json
 import uuid
 from boto3.dynamodb.conditions import Key, Attr
+from blocks import (
+    text_input,
+    channel_select,
+    divider,
+    checkboxes,
+    static_select,
+    static_select_action,
+)
 from util import (
     slack_command,
     send_message,
@@ -35,6 +43,18 @@ to_num = {
 }
 
 
+class DraftPoll:
+    pass
+
+
+class RecurringPoll(DraftPoll):
+    pass
+
+
+class ActivePoll(DraftPoll):
+    pass
+
+
 @slack_command("/easee-poll")
 def _create_new_poll(data):
     sections = list(
@@ -53,121 +73,47 @@ def _create_new_poll(data):
     trigger_id = data["trigger_id"]
     channel_id = data["channel_id"]
     blocks = [
-        {
-            "type": "input",
-            "block_id": "title",
-            "element": {
-                "type": "plain_text_input",
-                "multiline": True,
-                "action_id": "title",
-                "initial_value": title,
-            },
-            "label": {
-                "type": "plain_text",
-                "text": "What's the poll about",
-                "emoji": True,
-            },
-            "optional": False,
-        },
-        {
-            "type": "input",
-            "block_id": "channel",
-            "element": {
-                "type": "channels_select",
-                "placeholder": {
-                    "type": "plain_text",
-                    "text": "Channel",
-                    "emoji": True,
-                },
-                "action_id": "selected-channel",
-                "initial_channel": channel_id,
-            },
-            "label": {"type": "plain_text", "text": "Select a channel", "emoji": True},
-        },
-        {"type": "divider"},
-        {
-            "type": "input",
-            "block_id": "advanced-options",
-            "element": {
-                "type": "checkboxes",
-                "options": [
-                    {
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Anonymous voting",
-                            "emoji": True,
-                        },
-                        "value": "anonymous-votes",
-                    },
-                ],
-                "action_id": "create-poll-options-changed",
-            },
-            "label": {"type": "plain_text", "text": "Advanced options", "emoji": True},
-            "optional": True,
-        },
-        {
-            "type": "section",
-            "block_id": "recurring-settings",
-            "text": {"type": "plain_text", "text": "Recurring poll"},
-            "accessory": {
-                "type": "static_select",
-                "action_id": "update-recurring-settings",
-                "initial_option": {
-                    "value": "never",
-                    "text": {"type": "plain_text", "text": "Never"},
-                },
-                "options": [
-                    {"value": "never", "text": {"type": "plain_text", "text": "Never"}},
-                    {"value": "daily", "text": {"type": "plain_text", "text": "Daily"}},
-                    {
-                        "value": "weekly",
-                        "text": {"type": "plain_text", "text": "Weekly"},
-                    },
-                    {
-                        "value": "monthly",
-                        "text": {"type": "plain_text", "text": "Monthly"},
-                    },
-                ],
-            },
-        },
-        {
-            "type": "input",
-            "block_id": "limit-votes",
-            "element": {
-                "type": "static_select",
-                "placeholder": {
-                    "type": "plain_text",
-                    "text": "Select an item",
-                    "emoji": True,
-                },
-                "options": [],
-                "action_id": "limit-votes",
-                "initial_option": {
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Unlimited",
-                    },
-                    "value": "0",
-                },
-            },
-            "label": {
-                "type": "plain_text",
-                "text": "Limit the amount of votes",
-                "emoji": True,
-            },
-        },
-        {"type": "divider"},
-    ]
-    for i in range(10):
-        blocks[-2]["element"]["options"].append(
-            {
-                "text": {
-                    "type": "plain_text",
+        text_input(
+            text="What's this poll about",
+            multiline=True,
+            action_id="title",
+            optional=False,
+            initial_value=title,
+        ),
+        channel_select(initial_channel=channel_id),
+        divider(),
+        checkboxes(
+            text="Advanced options",
+            block_id="advanced-options",
+            action_id="create-poll-options-changed",
+            options=[{"text": "Anonymous voting", "value": "anonymous-votes"}],
+        ),
+        static_select_action(
+            text="Recurring poll",
+            block_id="recurring-settings",
+            action_id="update_recurring_settings",
+            options=[
+                {"text": "Never", "value": "never"},
+                {"text": "Daily", "value": "daily"},
+                {"text": "Weekly", "value": "weekly"},
+                {"text": "Monthly", "value": "monthly"},
+            ],
+        ),
+        static_select(
+            block_id="limit-votes",
+            initial_option_index=0,
+            text="Limit the amount of votes",
+            action_id="limit-votes",
+            options=[
+                {
                     "text": "Unlimited" if i == 0 else str(i),
-                },
-                "value": str(i),
-            }
-        )
+                    "value": str(i),
+                }
+                for i in range(10)
+            ],
+        ),
+        divider(),
+    ]
     for i in range(9):
         blocks.append(
             {
